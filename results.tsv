@@ -1,1 +1,2 @@
 thesis	attempt	metric	baseline	status	summary
+#1	thesis/1-cache-parsed-extensions-in-gettype	8013297.6000	5924224.6000	accepted	Implemented LRU cache (size 100) for path → extension parsing in getType(). Benchmark shows ~35% improvement (5.92M → 8.01M ops/sec). Cache eliminates redundant regex replacements for repeated path queries. All tests pass.
