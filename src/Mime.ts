@@ -1,9 +1,45 @@
 type TypeMap = { [key: string]: string[] };
 
+class LRUCache<K, V> {
+  private cache = new Map<K, V>();
+  private maxSize: number;
+
+  constructor(maxSize: number) {
+    this.maxSize = maxSize;
+  }
+
+  get(key: K): V | undefined {
+    const value = this.cache.get(key);
+    if (value !== undefined) {
+      // Move to end (most recently used)
+      this.cache.delete(key);
+      this.cache.set(key, value);
+    }
+    return value;
+  }
+
+  set(key: K, value: V): void {
+    // Delete if exists (to update position)
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    }
+    // Add to end
+    this.cache.set(key, value);
+    // Evict oldest if over size
+    if (this.cache.size > this.maxSize) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey);
+      }
+    }
+  }
+}
+
 export default class Mime {
   #extensionToType = new Map<string, string>();
   #typeToExtension = new Map<string, string>();
   #typeToExtensions = new Map<string, Set<string>>();
+  #pathCache = new LRUCache<string, string>(100);
 
   constructor(...args: TypeMap[]) {
     for (const arg of args) {
@@ -72,6 +108,12 @@ export default class Mime {
   getType(path: string) {
     if (typeof path !== 'string') return null;
 
+    // Check cache first
+    const cached = this.#pathCache.get(path);
+    if (cached !== undefined) {
+      return cached;
+    }
+
     // Remove chars preceding `/` or `\`
     const last = path.replace(/^.*[/\\]/s, '').toLowerCase();
 
@@ -82,9 +124,14 @@ export default class Mime {
     const hasDot = ext.length < last.length - 1;
 
     // Extension-less file?
-    if (!hasDot && hasPath) return null;
+    if (!hasDot && hasPath) {
+      this.#pathCache.set(path, null as any);
+      return null;
+    }
 
-    return this.#extensionToType.get(ext) ?? null;
+    const result = this.#extensionToType.get(ext) ?? null;
+    this.#pathCache.set(path, result as any);
+    return result;
   }
 
   /**
